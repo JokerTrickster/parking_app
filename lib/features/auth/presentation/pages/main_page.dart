@@ -752,7 +752,7 @@ class _MainPageState extends State<MainPage> {
                     controller: serverUrlController,
                     decoration: InputDecoration(
                       labelText: 'Server URL',
-                      hintText: 'Enter server URL',
+                      hintText: 'http://intra.luxrobo.net:7880',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -762,7 +762,7 @@ class _MainPageState extends State<MainPage> {
                   onPressed: isConnecting ? null : applyServerUrl,
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    backgroundColor: const Color.fromARGB(255, 219, 111, 140),
+                    backgroundColor: const Color.fromARGB(255, 171, 205, 229),
                     foregroundColor: Colors.white,
                   ),
                   child: Text('서버 연결'),
@@ -795,76 +795,78 @@ class _MainPageState extends State<MainPage> {
     if (_selectedIndex == 0) {
       return Column(
         children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  setState(() {
-                    moduleStatus = null;
-                    bleStatus = null;
-                    dimmingStatus = null;
-                    showBleInput = false;
-                    showDimmingInput = false;
-                  });
-                  await checkNetworkModuleStatus("all");
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    setState(() {
+                      moduleStatus = null;
+                      bleStatus = null;
+                      dimmingStatus = null;
+                      showBleInput = false;
+                      showDimmingInput = false;
+                    });
+                    await checkNetworkModuleStatus("all");
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                  ),
+                  child: Text('모든 모듈 상태'),
                 ),
-                child: Text('모든 모듈 상태 확인'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // ble 버튼을 누르면 ble 관련 입력 UI 표시
-                  setState(() {
-                    showBleInput = true;
-                    bleStatus = null;
-                    moduleStatus = null; // clear the network table
-                    dimmingStatus = null;
-                    showDimmingInput = false;
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      showBleInput = true;
+                      bleStatus = null;
+                      moduleStatus = null; // clear the network table
+                      dimmingStatus = null;
+                      showDimmingInput = false;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                  ),
+                  child: Text('ble'),
                 ),
-                child: Text('ble'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // Update dimming button to show dimming input UI
-                  setState(() {
-                    showDimmingInput = true;
-                    showBleInput = false;
-                    moduleStatus = null;
-                    bleStatus = null;
-                    dimmingStatus = null;
-                  });
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      showDimmingInput = true;
+                      showBleInput = false;
+                      moduleStatus = null;
+                      bleStatus = null;
+                      dimmingStatus = null;
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                  ),
+                  child: Text('dimming'),
                 ),
-                child: Text('dimming'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  setState(() {
-                    moduleStatus = null;
-                    bleStatus = null;
-                    dimmingStatus = null;
-                    showBleInput = false;
-                    showDimmingInput = false;
-                    showOtaButtons = true;
-                  });
-                  await checkNetworkModuleStatus("ota");
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () async {
+                    setState(() {
+                      moduleStatus = null;
+                      bleStatus = null;
+                      dimmingStatus = null;
+                      showBleInput = false;
+                      showDimmingInput = false;
+                      showOtaButtons = true;
+                    });
+                    await checkNetworkModuleStatus("ota");
+                  },
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                  ),
+                  child: Text('ota'),
                 ),
-                child: Text('ota'),
-              ),
-            ],
+              ],
+            ),
           ),
           Container(
             height: 1,
@@ -879,6 +881,7 @@ class _MainPageState extends State<MainPage> {
                   controller: bleQueryController,
                   decoration: InputDecoration(
                     labelText: 'CCTV Name for BLE',
+                    hintText: 'P1_B1_1_1',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -902,6 +905,7 @@ class _MainPageState extends State<MainPage> {
                   controller: dimmingQueryController,
                   decoration: InputDecoration(
                     labelText: 'CCTV Name for Dimming',
+                    hintText: 'P1_B1_1_1',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -968,6 +972,7 @@ class _MainPageState extends State<MainPage> {
                                                       decoration:
                                                           InputDecoration(
                                                         labelText: 'CCTV Name',
+                                                        hintText: 'P1_B1_1_1',
                                                         border:
                                                             OutlineInputBorder(),
                                                       ),
@@ -1041,6 +1046,8 @@ class _MainPageState extends State<MainPage> {
                                                               InputDecoration(
                                                             labelText:
                                                                 'CCTV Name',
+                                                            hintText:
+                                                                'P1_B1_1_1',
                                                             border:
                                                                 OutlineInputBorder(),
                                                           ),
@@ -1297,6 +1304,7 @@ class _MainPageState extends State<MainPage> {
                 controller: parkingLocationController,
                 decoration: InputDecoration(
                   labelText: '주차장 위치',
+                  hintText: 'P1_B1',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1575,6 +1583,7 @@ class _MainPageState extends State<MainPage> {
                           controller: cctvNameController,
                           decoration: InputDecoration(
                             labelText: 'CCTV Name',
+                            hintText: 'P1_B1_1_1',
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -1648,7 +1657,7 @@ class _MainPageState extends State<MainPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 230, 190, 215),
+                backgroundColor: const Color.fromARGB(255, 171, 205, 229),
                 padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
               child: Text(
@@ -1725,7 +1734,7 @@ class _MainPageState extends State<MainPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: const Color.fromARGB(255, 171, 205, 229),
                 padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
               child: Text(

@@ -17,7 +17,8 @@ class LoginPage extends StatelessWidget {
           children: [
             TextField(
               onChanged: viewModel.setUsername,
-              decoration: InputDecoration(labelText: 'Username'),
+              decoration:
+                  InputDecoration(labelText: 'Username', hintText: 'admin'),
             ),
             TextField(
               onChanged: viewModel.setPassword,
