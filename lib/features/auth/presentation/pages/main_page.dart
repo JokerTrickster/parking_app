@@ -31,9 +31,26 @@ class _MainPageState extends State<MainPage> {
 
   int _selectedIndex = 0; // 0: 네트워크, 1: 조명, 2: 관리자 사이트
   bool showDimmingInput = false;
+  bool showOtaButtons = false;
   List<Map<String, dynamic>>? dimmingStatus;
   bool isDimmingLoading = false;
   final TextEditingController dimmingQueryController = TextEditingController();
+  List<Map<String, dynamic>>? otaList;
+  bool isOtaListLoading = false;
+  List<Map<String, dynamic>>? uploadProgressList;
+  bool isUploadProgressLoading = false;
+  final TextEditingController uploadProgressQueryController =
+      TextEditingController();
+  List<Map<String, dynamic>>? otaInfoList;
+  bool isOtaInfoLoading = false;
+  final TextEditingController otaInfoQueryController = TextEditingController();
+  final TextEditingController otaInitQueryController = TextEditingController();
+  final TextEditingController otaInitModIdController = TextEditingController();
+  final TextEditingController otaInitTypeController = TextEditingController();
+
+  // Add new state variables for CCTV status
+  List<Map<String, dynamic>>? cctvStatusList;
+  bool isCctvStatusLoading = false;
 
   Future<void> applyServerUrl() async {
     setState(() {
@@ -183,6 +200,158 @@ class _MainPageState extends State<MainPage> {
       setState(() {
         isDimmingLoading = false;
       });
+    }
+  }
+
+  Future<void> fetchOtaFileList() async {
+    if (appliedServerUrl.isEmpty) return;
+    setState(() {
+      isOtaListLoading = true;
+      otaList = null;
+    });
+    final url = '$appliedServerUrl/api/dev/parking-lights/ota-list';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          otaList = List<Map<String, dynamic>>.from(data);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to fetch OTA file list (Code: ${response.statusCode})')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching OTA file list: $e')),
+      );
+    } finally {
+      setState(() {
+        isOtaListLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchUploadProgress() async {
+    if (appliedServerUrl.isEmpty) return;
+    setState(() {
+      isUploadProgressLoading = true;
+      uploadProgressList = null;
+    });
+    final url = '$appliedServerUrl/api/dev/parking-lights/ota/';
+    try {
+      print(url);
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'c0f0de79-55f3-419b-88ea-6dde435acb35',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          uploadProgressList = List<Map<String, dynamic>>.from(data);
+        });
+      } else {
+        print(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to fetch upload progress (Code: ${response.statusCode})')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching upload progress: $e')),
+      );
+    } finally {
+      setState(() {
+        isUploadProgressLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchOtaInfo() async {
+    if (appliedServerUrl.isEmpty) return;
+    setState(() {
+      isOtaInfoLoading = true;
+      otaInfoList = null;
+    });
+    final url =
+        '$appliedServerUrl/api/dev/parking-lights/sys?cctvName=${Uri.encodeComponent(otaInfoQueryController.text)}';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          otaInfoList = List<Map<String, dynamic>>.from(data);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to fetch OTA info (Code: ${response.statusCode})')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching OTA info: $e')),
+      );
+    } finally {
+      setState(() {
+        isOtaInfoLoading = false;
+      });
+    }
+  }
+
+  Future<void> handleOtaInit() async {
+    if (appliedServerUrl.isEmpty) return;
+    final url =
+        '$appliedServerUrl/api/dev/parking-lights/sys/${Uri.encodeComponent(otaInitQueryController.text)}';
+    try {
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'c0f0de79-55f3-419b-88ea-6dde435acb35',
+        },
+        body: json.encode([
+          {
+            "modId": int.parse(otaInitModIdController.text),
+            "type": otaInitTypeController.text
+          }
+        ]),
+      );
+      if (response.statusCode == 200) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text('Success'),
+              content: Text(response.body),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to initialize OTA (Code: ${response.statusCode})')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error initializing OTA: $e')),
+      );
     }
   }
 
@@ -392,43 +561,82 @@ class _MainPageState extends State<MainPage> {
         : Center(child: Text('No OTA module data found'));
   }
 
-  Widget _buildCctvStatusTable() {
-    if (moduleStatus == null || moduleStatus!['lightStatusList'] == null)
-      return Container();
-    List<dynamic> list = moduleStatus!['lightStatusList'];
-    List<DataRow> rows = [];
-    for (var item in list) {
-      String cctvName = item['cctvName'] ?? '';
-      List<dynamic> lightStatusList = item['lightStatus'] ?? [];
-      for (var light in lightStatusList) {
-        if (light['type'] == 'cctv') {
-          rows.add(DataRow(cells: [
-            DataCell(Text(cctvName)),
-            DataCell(Text(light['modId'].toString())),
-            DataCell(Text(light['status'] ?? '')),
-            DataCell(Text(light['type'] ?? '')),
-          ]));
-        }
+  // Add new function to fetch CCTV status
+  Future<void> fetchCctvStatus() async {
+    if (appliedServerUrl.isEmpty) return;
+    setState(() {
+      isCctvStatusLoading = true;
+      cctvStatusList = null;
+    });
+    final url = '$appliedServerUrl/api/dev/test/cctv';
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          cctvStatusList = List<Map<String, dynamic>>.from(data);
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to fetch CCTV status (Code: ${response.statusCode})')),
+        );
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching CCTV status: $e')),
+      );
+    } finally {
+      setState(() {
+        isCctvStatusLoading = false;
+      });
     }
-    return rows.isNotEmpty
-        ? SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 8.0,
-              horizontalMargin: 8.0,
-              dataRowHeight: 40.0,
-              headingRowHeight: 40.0,
-              columns: const [
-                DataColumn(label: Text('CCTV Name')),
-                DataColumn(label: Text('Mod ID')),
-                DataColumn(label: Text('Status')),
-                DataColumn(label: Text('Type')),
-              ],
-              rows: rows,
-            ),
-          )
-        : Center(child: Text('No CCTV module data found'));
+  }
+
+  // Add new widget to build CCTV status table
+  Widget _buildCctvStatusTable() {
+    if (cctvStatusList == null || cctvStatusList!.isEmpty)
+      return Center(child: Text('No Data'));
+    print(cctvStatusList);
+    return DataTable(
+      columnSpacing: 12.0,
+      horizontalMargin: 12.0,
+      dataRowHeight: 40.0,
+      headingRowHeight: 40.0,
+      columns: const [
+        DataColumn(label: Text('Name')),
+        DataColumn(label: Text('IP Address')),
+        DataColumn(label: Text('Status')),
+        DataColumn(label: Text('Monitoring')),
+        DataColumn(label: Text('Monitored At')),
+      ],
+      rows: cctvStatusList!.map((item) {
+        if (item is Map<String, dynamic>) {
+          return DataRow(
+            cells: [
+              DataCell(Text(item['name']?.toString() ?? '')),
+              DataCell(Text(item['ipAddr']?.toString() ?? '')),
+              DataCell(Text(item['status']?.toString() ?? '')),
+              DataCell(Text(item['monitoring']?.toString() ?? '')),
+              DataCell(Text(item['monitoredAt']?.toString() ?? '')),
+            ],
+          );
+        } else {
+          return const DataRow(
+            cells: [
+              DataCell(Text('Invalid')),
+              DataCell(Text('Invalid')),
+              DataCell(Text('Invalid')),
+              DataCell(Text('Invalid')),
+              DataCell(Text('Invalid')),
+            ],
+          );
+        }
+      }).toList(),
+    );
   }
 
   // 상단 고정 헤더 영역 (서버 URL 입력 및 적용)
@@ -502,8 +710,8 @@ class _MainPageState extends State<MainPage> {
       return Column(
         children: [
           Wrap(
-            spacing: 16,
-            runSpacing: 16,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               ElevatedButton(
                 onPressed: () async {
@@ -517,7 +725,7 @@ class _MainPageState extends State<MainPage> {
                   await checkNetworkModuleStatus("all");
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                 ),
                 child: Text('모든 모듈 상태 확인'),
               ),
@@ -533,7 +741,7 @@ class _MainPageState extends State<MainPage> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                 ),
                 child: Text('ble'),
               ),
@@ -549,7 +757,7 @@ class _MainPageState extends State<MainPage> {
                   });
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                 ),
                 child: Text('dimming'),
               ),
@@ -561,31 +769,21 @@ class _MainPageState extends State<MainPage> {
                     dimmingStatus = null;
                     showBleInput = false;
                     showDimmingInput = false;
+                    showOtaButtons = true;
                   });
                   await checkNetworkModuleStatus("ota");
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                 ),
                 child: Text('ota'),
               ),
-              ElevatedButton(
-                onPressed: () async {
-                  setState(() {
-                    moduleStatus = null;
-                    bleStatus = null;
-                    dimmingStatus = null;
-                    showBleInput = false;
-                    showDimmingInput = false;
-                  });
-                  await checkNetworkModuleStatus("cctv");
-                },
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                ),
-                child: Text('cctv 상태 확인'),
-              ),
             ],
+          ),
+          Container(
+            height: 1,
+            color: Colors.grey,
+            margin: EdgeInsets.symmetric(vertical: 8),
           ),
           SizedBox(height: 20),
           if (showBleInput)
@@ -642,7 +840,198 @@ class _MainPageState extends State<MainPage> {
                       ? (currentModule == "all"
                           ? _buildAllModuleStatusTable()
                           : currentModule == "ota"
-                              ? _buildOtaStatusTable()
+                              ? (showOtaButtons
+                                  ? Column(
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  otaInfoList = null;
+                                                  uploadProgressList = null;
+                                                });
+                                                fetchOtaFileList();
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 8),
+                                                textStyle:
+                                                    TextStyle(fontSize: 12),
+                                              ),
+                                              child: Text('OTA File List'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  otaList = null;
+                                                  uploadProgressList = null;
+                                                  otaInfoList = null;
+                                                });
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) =>
+                                                      AlertDialog(
+                                                    title:
+                                                        Text('Enter CCTV Name'),
+                                                    content: TextField(
+                                                      controller:
+                                                          otaInfoQueryController,
+                                                      decoration:
+                                                          InputDecoration(
+                                                        labelText: 'CCTV Name',
+                                                        border:
+                                                            OutlineInputBorder(),
+                                                      ),
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              context);
+                                                        },
+                                                        child: Text('Cancel'),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              context);
+                                                          fetchOtaInfo();
+                                                        },
+                                                        child: Text('Query'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 8),
+                                                textStyle:
+                                                    TextStyle(fontSize: 12),
+                                              ),
+                                              child: Text('OTA Info'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  otaList = null;
+                                                  uploadProgressList = null;
+                                                  otaInfoList = null;
+                                                });
+                                                fetchUploadProgress();
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 8),
+                                                textStyle:
+                                                    TextStyle(fontSize: 12),
+                                              ),
+                                              child: Text('Upload Progress'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  otaList = null;
+                                                  uploadProgressList = null;
+                                                  otaInfoList = null;
+                                                });
+                                                showDialog(
+                                                  context: context,
+                                                  builder: (context) =>
+                                                      AlertDialog(
+                                                    title: Text(
+                                                        'Enter OTA Init Details'),
+                                                    content: Column(
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        TextField(
+                                                          controller:
+                                                              otaInitQueryController,
+                                                          decoration:
+                                                              InputDecoration(
+                                                            labelText:
+                                                                'CCTV Name',
+                                                            border:
+                                                                OutlineInputBorder(),
+                                                          ),
+                                                        ),
+                                                        SizedBox(height: 8),
+                                                        TextField(
+                                                          controller:
+                                                              otaInitModIdController,
+                                                          decoration:
+                                                              InputDecoration(
+                                                            labelText: 'Mod ID',
+                                                            border:
+                                                                OutlineInputBorder(),
+                                                          ),
+                                                          keyboardType:
+                                                              TextInputType
+                                                                  .number,
+                                                        ),
+                                                        SizedBox(height: 8),
+                                                        TextField(
+                                                          controller:
+                                                              otaInitTypeController,
+                                                          decoration:
+                                                              InputDecoration(
+                                                            labelText: 'Type',
+                                                            border:
+                                                                OutlineInputBorder(),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    actions: [
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              context);
+                                                        },
+                                                        child: Text('Cancel'),
+                                                      ),
+                                                      TextButton(
+                                                        onPressed: () {
+                                                          Navigator.pop(
+                                                              context);
+                                                          handleOtaInit();
+                                                        },
+                                                        child: Text('Apply'),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                );
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                padding: EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 8),
+                                                textStyle:
+                                                    TextStyle(fontSize: 12),
+                                              ),
+                                              child: Text('OTA Init'),
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 8),
+                                        if (isOtaListLoading)
+                                          CircularProgressIndicator(),
+                                        if (otaList != null)
+                                          _buildOtaFileListTable(),
+                                        if (isUploadProgressLoading)
+                                          CircularProgressIndicator(),
+                                        if (uploadProgressList != null)
+                                          _buildUploadProgressTable(),
+                                        if (isOtaInfoLoading)
+                                          CircularProgressIndicator(),
+                                        if (otaInfoList != null)
+                                          _buildOtaInfoTable(),
+                                      ],
+                                    )
+                                  : _buildOtaStatusTable())
                               : currentModule == "cctv"
                                   ? _buildCctvStatusTable()
                                   : Container())
@@ -687,6 +1076,95 @@ class _MainPageState extends State<MainPage> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildOtaFileListTable() {
+    if (otaList == null) return Container();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 8.0,
+        horizontalMargin: 8.0,
+        dataRowHeight: 40.0,
+        headingRowHeight: 40.0,
+        columns: const [
+          DataColumn(label: Text('File')),
+          DataColumn(label: Text('Dev Type')),
+          DataColumn(label: Text('Uploaded')),
+          DataColumn(label: Text('Version')),
+        ],
+        rows: otaList!.map((item) {
+          return DataRow(
+            cells: [
+              DataCell(Text(item['file']?.toString() ?? '')),
+              DataCell(Text(item['devType']?.toString() ?? '')),
+              DataCell(Text(item['uploaded']?.toString() ?? '')),
+              DataCell(Text(item['version']?.toString() ?? '')),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildUploadProgressTable() {
+    if (uploadProgressList == null) return Container();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 8.0,
+        horizontalMargin: 8.0,
+        dataRowHeight: 40.0,
+        headingRowHeight: 40.0,
+        columns: const [
+          DataColumn(label: Text('CCTV Name')),
+          DataColumn(label: Text('Mod ID')),
+          DataColumn(label: Text('Status')),
+          DataColumn(label: Text('Version')),
+          DataColumn(label: Text('File')),
+        ],
+        rows: uploadProgressList!.map((item) {
+          return DataRow(
+            cells: [
+              DataCell(Text(item['cctvName']?.toString() ?? '')),
+              DataCell(Text(item['modId']?.toString() ?? '')),
+              DataCell(Text(item['string']?.toString() ?? '')),
+              DataCell(Text(item['version']?.toString() ?? '')),
+              DataCell(Text(item['file']?.toString() ?? '')),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildOtaInfoTable() {
+    if (otaInfoList == null) return Container();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 8.0,
+        horizontalMargin: 8.0,
+        dataRowHeight: 40.0,
+        headingRowHeight: 40.0,
+        columns: const [
+          DataColumn(label: Text('Dimming')),
+          DataColumn(label: Text('Mod ID')),
+          DataColumn(label: Text('Mod Type')),
+          DataColumn(label: Text('Version')),
+        ],
+        rows: otaInfoList!.map((item) {
+          return DataRow(
+            cells: [
+              DataCell(Text(item['dimming']?.toString() ?? '')),
+              DataCell(Text(item['modId']?.toString() ?? '')),
+              DataCell(Text(item['modType']?.toString() ?? '')),
+              DataCell(Text(item['version']?.toString() ?? '')),
+            ],
+          );
+        }).toList(),
+      ),
     );
   }
 
