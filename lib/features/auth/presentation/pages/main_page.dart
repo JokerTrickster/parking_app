@@ -1327,7 +1327,10 @@ class _MainPageState extends State<MainPage> {
                         Expanded(
                           flex: 2,
                           child: DropdownButton<String>(
-                            value: data['mode'],
+                            value: (['auto', 'manual']
+                                    .contains(data['mode']?.toString())
+                                ? data['mode']?.toString()
+                                : 'auto'),
                             items: ['auto', 'manual'].map((value) {
                               return DropdownMenuItem<String>(
                                 value: value,
@@ -1372,9 +1375,56 @@ class _MainPageState extends State<MainPage> {
                     children: [
                       Center(
                         child: ElevatedButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text("조명 상태 수정 버튼이 눌렸습니다.")));
+                          onPressed: () async {
+                            final String location =
+                                parkingLocationController.text;
+                            if (location.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("주차장 위치를 입력하세요.")));
+                              return;
+                            }
+                            final String url =
+                                '$appliedServerUrl/api/admin/status/location/${Uri.encodeComponent(location)}';
+                            final Map<String, dynamic> requestBody = {
+                              "aisle": {
+                                "mode": data['mode'],
+                                "state": data['state']
+                              },
+                              "caution": {
+                                "mode": data['mode'],
+                                "state": data['state']
+                              },
+                              "parking": {
+                                "mode": data['mode'],
+                                "state": data['state']
+                              },
+                              "warning": {
+                                "mode": data['mode'],
+                                "state": data['state']
+                              }
+                            };
+                            try {
+                              final response = await http.post(Uri.parse(url),
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization':
+                                        'c0f0de79-55f3-419b-88ea-6dde435acb35'
+                                  },
+                                  body: json.encode(requestBody));
+                              if (response.statusCode == 200) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text("조명 상태가 성공적으로 수정되었습니다.")));
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content: Text(
+                                        "조명 상태 수정 실패 (Code: ${response.statusCode})")));
+                              }
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("오류가 발생했습니다: $e")));
+                            }
                           },
                           child: Text("조명 상태 수정"),
                         ),
