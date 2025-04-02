@@ -52,6 +52,13 @@ class _MainPageState extends State<MainPage> {
   List<Map<String, dynamic>>? cctvStatusList;
   bool isCctvStatusLoading = false;
 
+  // 관리자 사이트 하위 탭 선택 (lights: 조명 제어, emergency: 비상호출 시스템)
+  String adminSubTab = "lights";
+  final TextEditingController parkingLocationController =
+      TextEditingController();
+  List<Map<String, dynamic>>? lightingControlData;
+  Map<String, dynamic>? dimmingConfig;
+
   Future<void> applyServerUrl() async {
     setState(() {
       isConnecting = true;
@@ -351,6 +358,84 @@ class _MainPageState extends State<MainPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error initializing OTA: $e')),
+      );
+    }
+  }
+
+  Future<void> fetchLightingControl() async {
+    if (appliedServerUrl.isEmpty) return;
+    final location = parkingLocationController.text;
+    final url =
+        '$appliedServerUrl/api/admin/status/location?location=${Uri.encodeComponent(location)}';
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'Authorization': 'c0f0de79-55f3-419b-88ea-6dde435acb35'},
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)['data'];
+        setState(() {
+          lightingControlData = [
+            {
+              "lightName": "통로등",
+              "mode": data['aisle']['mode'],
+              "state": data['aisle']['state']
+            },
+            {
+              "lightName": "만공차등",
+              "mode": data['parking']['mode'],
+              "state": data['parking']['state']
+            },
+            {
+              "lightName": "충돌방지등",
+              "mode": data['caution']['mode'],
+              "state": data['caution']['state']
+            },
+            {
+              "lightName": "실내경광등",
+              "mode": data['warning']['mode'],
+              "state": data['warning']['state']
+            },
+          ];
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('조회 실패 (Code: ${response.statusCode})')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('오류: $e')));
+    }
+  }
+
+  Future<void> fetchDimmingConfig() async {
+    if (appliedServerUrl.isEmpty) return;
+    final location = parkingLocationController.text;
+    final url =
+        '$appliedServerUrl/api/admin/dimming/location?location=${Uri.encodeComponent(location)}';
+    try {
+      print(url);
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'c0f0de79-55f3-419b-88ea-6dde435acb35'
+        }, // Added API key here
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)['data'];
+        setState(() {
+          dimmingConfig = data;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Failed to fetch dimming config (Code: ${response.statusCode})')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching dimming config: $e')),
       );
     }
   }
@@ -1049,12 +1134,7 @@ class _MainPageState extends State<MainPage> {
       );
     } else if (_selectedIndex == 2) {
       // 관리자 사이트 탭
-      return Center(
-        child: Text(
-          '관리자 사이트 페이지',
-          style: TextStyle(fontSize: 20),
-        ),
-      );
+      return _buildAdminContent();
     }
     return Container();
   }
@@ -1166,6 +1246,255 @@ class _MainPageState extends State<MainPage> {
         }).toList(),
       ),
     );
+  }
+
+  Widget _buildAdminContent() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    adminSubTab = "lights";
+                    lightingControlData = null;
+                    parkingLocationController.clear();
+                  });
+                },
+                child: Text('조명 제어'),
+              ),
+              SizedBox(width: 16),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    adminSubTab = "emergency";
+                  });
+                },
+                child: Text('비상호출 시스템'),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          adminSubTab == "lights"
+              ? _buildLightingControlPanel()
+              : _buildEmergencySystem(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLightingControlPanel() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: parkingLocationController,
+                decoration: InputDecoration(
+                  labelText: '주차장 위치',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                // 조회 버튼 클릭 시 조명 제어 데이터와 기본 조명값 조회
+                fetchLightingControl();
+                fetchDimmingConfig();
+              },
+              child: Text('조회'),
+            ),
+          ],
+        ),
+        SizedBox(height: 16),
+        if (lightingControlData != null)
+          Column(
+            children: lightingControlData!.expand((data) {
+              final List<Widget> widgets = [];
+              widgets.add(
+                Card(
+                  margin: EdgeInsets.symmetric(vertical: 4),
+                  child: Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Row(
+                      children: [
+                        Expanded(flex: 2, child: Text(data['lightName'])),
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButton<String>(
+                            value: data['mode'],
+                            items: ['auto', 'manual'].map((value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              );
+                            }).toList(),
+                            onChanged: (newValue) {
+                              setState(() {
+                                data['mode'] = newValue;
+                              });
+                            },
+                          ),
+                        ),
+                        if (data['mode'] == 'manual')
+                          Expanded(
+                            flex: 2,
+                            child: Row(
+                              children: [
+                                Text('On'),
+                                Switch(
+                                  value: data['state'] == 'on',
+                                  onChanged: (bool newVal) {
+                                    setState(() {
+                                      data['state'] = newVal ? 'on' : 'off';
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        Expanded(
+                            flex: 2, child: Text('현재 상태: ${data['state']}')),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+              if (data['lightName'] == '실내경광등' && dimmingConfig != null) {
+                widgets.add(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text("조명 상태 수정 버튼이 눌렸습니다.")));
+                          },
+                          child: Text("조명 상태 수정"),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          '기본 조명값',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Text('Dim Min : '),
+                          Container(
+                            width: 60,
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${dimmingConfig!['dimMin']}',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Text('Dim Max : '),
+                          Container(
+                            width: 60,
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${dimmingConfig!['dimMax']}',
+                              style: TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Center(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final TextEditingController controllerMin =
+                                TextEditingController(
+                                    text: dimmingConfig!['dimMin'].toString());
+                            final TextEditingController controllerMax =
+                                TextEditingController(
+                                    text: dimmingConfig!['dimMax'].toString());
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text('Edit Dimming Values'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TextField(
+                                      controller: controllerMin,
+                                      keyboardType: TextInputType.number,
+                                      decoration:
+                                          InputDecoration(labelText: 'dimMin'),
+                                    ),
+                                    TextField(
+                                      controller: controllerMax,
+                                      keyboardType: TextInputType.number,
+                                      decoration:
+                                          InputDecoration(labelText: 'dimMax'),
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: Text('Cancel')),
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        dimmingConfig!['dimMin'] =
+                                            int.tryParse(controllerMin.text) ??
+                                                dimmingConfig!['dimMin'];
+                                        dimmingConfig!['dimMax'] =
+                                            int.tryParse(controllerMax.text) ??
+                                                dimmingConfig!['dimMax'];
+                                      });
+                                      Navigator.pop(context);
+                                    },
+                                    child: Text('Save'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          child: Text('조명값 수정'),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return widgets;
+            }).toList(),
+          ),
+        SizedBox(height: 16),
+        /*
+        ElevatedButton(
+          onPressed: () {
+            print("Lighting Control Applied: $lightingControlData, Dimming Config: $dimmingConfig");
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text('조명 설정이 적용되었습니다.')));
+          },
+          child: Text('적용하기'),
+        ),
+        */
+      ],
+    );
+  }
+
+  Widget _buildEmergencySystem() {
+    // 비상호출 시스템의 UI는 추후 구현; 현재 플레이스홀더만 표시
+    return Center(child: Text('비상호출 시스템 UI'));
   }
 
   @override
