@@ -8,7 +8,8 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  final TextEditingController serverUrlController = TextEditingController();
+  final TextEditingController serverUrlController =
+      TextEditingController(text: "http://intra.luxrobo.net:7880");
   // ble 전용 컨트롤러
   final TextEditingController bleQueryController = TextEditingController();
 
@@ -761,10 +762,10 @@ class _MainPageState extends State<MainPage> {
                   onPressed: isConnecting ? null : applyServerUrl,
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    backgroundColor: const Color.fromARGB(255, 163, 169, 229),
+                    backgroundColor: const Color.fromARGB(255, 219, 111, 140),
                     foregroundColor: Colors.white,
                   ),
-                  child: Text('서버 등록'),
+                  child: Text('서버 연결'),
                 ),
               ],
             ),
@@ -1543,8 +1544,164 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _buildEmergencySystem() {
-    // 비상호출 시스템의 UI는 추후 구현; 현재 플레이스홀더만 표시
-    return Center(child: Text('비상호출 시스템 UI'));
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ElevatedButton(
+              onPressed: () async {
+                if (appliedServerUrl.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('서버 URL을 입력해주세요')),
+                  );
+                  return;
+                }
+                final TextEditingController cctvNameController =
+                    TextEditingController();
+                final TextEditingController deviceTypeController =
+                    TextEditingController(text: "OnePassKey");
+                final TextEditingController masterCodeController =
+                    TextEditingController(text: "E8-54-B1-93-A1-56");
+
+                await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('SOS 벨 Push 요청'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: cctvNameController,
+                          decoration: InputDecoration(
+                            labelText: 'CCTV Name',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        TextField(
+                          controller: deviceTypeController,
+                          decoration: InputDecoration(
+                            labelText: 'Device Type',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        TextField(
+                          controller: masterCodeController,
+                          decoration: InputDecoration(
+                            labelText: 'Master Code',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('취소'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          if (cctvNameController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('CCTV 이름을 입력해주세요')),
+                            );
+                            return;
+                          }
+                          try {
+                            final response = await http.post(
+                              Uri.parse(
+                                  '$appliedServerUrl/api/dev/test/sos-push/${Uri.encodeComponent(cctvNameController.text)}'),
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization':
+                                    'c0f0de79-55f3-419b-88ea-6dde435acb35',
+                              },
+                              body: json.encode({
+                                "deviceType": deviceTypeController.text,
+                                "masterCode": masterCodeController.text
+                              }),
+                            );
+                            if (response.statusCode == 200) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('SOS 벨 Push 성공')),
+                              );
+                              Navigator.pop(context);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'SOS 벨 Push 실패 (Code: ${response.statusCode})')),
+                              );
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('오류 발생: $e')),
+                            );
+                          }
+                        },
+                        child: Text('요청'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 230, 190, 215),
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+              child: Text(
+                'SOS 벨 Push',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (appliedServerUrl.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('서버 URL을 입력해주세요')),
+                  );
+                  return;
+                }
+                try {
+                  final response = await http.post(
+                    Uri.parse('$appliedServerUrl/api/admin/emergency/pop'),
+                    headers: {
+                      'Authorization': 'c0f0de79-55f3-419b-88ea-6dde435acb35',
+                    },
+                  );
+                  if (response.statusCode == 200) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('SOS 벨 Pop 성공')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(
+                              'SOS 벨 Pop 실패 (Code: ${response.statusCode})')),
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('오류 발생: $e')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 230, 190, 215),
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              ),
+              child: Text(
+                'SOS 벨 Pop',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 20),
+      ],
+    );
   }
 
   @override
