@@ -1664,32 +1664,68 @@ class _MainPageState extends State<MainPage> {
                   );
                   return;
                 }
-                try {
-                  final response = await http.post(
-                    Uri.parse('$appliedServerUrl/api/admin/emergency/pop'),
-                    headers: {
-                      'Authorization': 'c0f0de79-55f3-419b-88ea-6dde435acb35',
-                    },
-                  );
-                  if (response.statusCode == 200) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('SOS 벨 Pop 성공')),
-                    );
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(
-                              'SOS 벨 Pop 실패 (Code: ${response.statusCode})')),
-                    );
-                  }
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('오류 발생: $e')),
-                  );
-                }
+                final TextEditingController cctvNameController =
+                    TextEditingController();
+                await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('SOS 벨 Pop 요청'),
+                    content: TextField(
+                      controller: cctvNameController,
+                      decoration: InputDecoration(
+                        labelText: 'CCTV Name',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('취소'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          if (cctvNameController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('CCTV 이름을 입력해주세요')),
+                            );
+                            return;
+                          }
+                          try {
+                            final response = await http.post(
+                              Uri.parse(
+                                  '$appliedServerUrl/api/dev/test/sos-pop/${Uri.encodeComponent(cctvNameController.text)}'),
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization':
+                                    'c0f0de79-55f3-419b-88ea-6dde435acb35',
+                              },
+                            );
+                            if (response.statusCode == 200) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('SOS 벨 Pop 성공')),
+                              );
+                              Navigator.pop(context);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'SOS 벨 Pop 실패 (Code: ${response.statusCode})')),
+                              );
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('오류 발생: $e')),
+                            );
+                          }
+                        },
+                        child: Text('요청'),
+                      ),
+                    ],
+                  ),
+                );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 230, 190, 215),
+                backgroundColor: Colors.green,
                 padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               ),
               child: Text(
