@@ -451,19 +451,171 @@ class _MainPageState extends State<MainPage> {
         DataCell(Text(value.toString())),
       ]));
     });
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 8.0,
-        horizontalMargin: 8.0,
-        dataRowHeight: 40.0,
-        headingRowHeight: 40.0,
-        columns: const [
-          DataColumn(label: Text('Field')),
-          DataColumn(label: Text('Value')),
-        ],
-        rows: rows,
-      ),
+    return Column(
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columnSpacing: 8.0,
+            horizontalMargin: 8.0,
+            dataRowHeight: 40.0,
+            headingRowHeight: 40.0,
+            columns: const [
+              DataColumn(label: Text('Field')),
+              DataColumn(label: Text('Value')),
+            ],
+            rows: rows,
+          ),
+        ),
+        SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () async {
+            final TextEditingController cctvNameController =
+                TextEditingController(text: bleQueryController.text);
+            final TextEditingController advIntMinController =
+                TextEditingController(
+                    text: bleStatus!['advIntMin']?.toString() ?? '');
+            final TextEditingController advIntMaxController =
+                TextEditingController(
+                    text: bleStatus!['advIntMax']?.toString() ?? '');
+            final TextEditingController scanIntController =
+                TextEditingController(
+                    text: bleStatus!['scanInt']?.toString() ?? '');
+            final TextEditingController scanWinController =
+                TextEditingController(
+                    text: bleStatus!['scanWin']?.toString() ?? '');
+            final TextEditingController advPowerController =
+                TextEditingController(
+                    text: bleStatus!['ADVPower']?.toString() ?? '');
+
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: Text('BLE 상태 수정'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: cctvNameController,
+                        decoration: InputDecoration(
+                          labelText: 'CCTV Name',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        controller: advIntMinController,
+                        decoration: InputDecoration(
+                          labelText: 'Adv Int Min',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        controller: advIntMaxController,
+                        decoration: InputDecoration(
+                          labelText: 'Adv Int Max',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        controller: scanIntController,
+                        decoration: InputDecoration(
+                          labelText: 'Scan Int',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        controller: scanWinController,
+                        decoration: InputDecoration(
+                          labelText: 'Scan Win',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      SizedBox(height: 8),
+                      TextField(
+                        controller: advPowerController,
+                        decoration: InputDecoration(
+                          labelText: 'ADV Power',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('취소'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      if (cctvNameController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('CCTV 이름을 입력해주세요')),
+                        );
+                        return;
+                      }
+                      try {
+                        final response = await http.post(
+                          Uri.parse(
+                              '$appliedServerUrl/api/dev/parking-lights/ble/${Uri.encodeComponent(cctvNameController.text)}'),
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization':
+                                'c0f0de79-55f3-419b-88ea-6dde435acb35',
+                          },
+                          body: json.encode({
+                            "ADVPower":
+                                int.tryParse(advPowerController.text) ?? 0,
+                            "advIntMax":
+                                int.tryParse(advIntMaxController.text) ?? 0,
+                            "advIntMin":
+                                int.tryParse(advIntMinController.text) ?? 0,
+                            "scanInt":
+                                int.tryParse(scanIntController.text) ?? 0,
+                            "scanWin":
+                                int.tryParse(scanWinController.text) ?? 0,
+                          }),
+                        );
+                        if (response.statusCode == 200) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('BLE 상태 수정 성공')),
+                          );
+                          Navigator.pop(context);
+                          // 수정 후 상태 다시 조회
+                          bleQueryController.text = cctvNameController.text;
+                          checkBleStatus();
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'BLE 상태 수정 실패 (Code: ${response.statusCode})')),
+                          );
+                        }
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('오류 발생: $e')),
+                        );
+                      }
+                    },
+                    child: Text('수정'),
+                  ),
+                ],
+              ),
+            );
+          },
+          child: Text('수정하기'),
+        ),
+      ],
     );
   }
 
@@ -762,7 +914,7 @@ class _MainPageState extends State<MainPage> {
                   onPressed: isConnecting ? null : applyServerUrl,
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    backgroundColor: const Color.fromARGB(255, 171, 205, 229),
+                    backgroundColor: const Color.fromARGB(255, 202, 212, 219),
                     foregroundColor: Colors.white,
                   ),
                   child: Text('서버 연결'),
@@ -1659,7 +1811,7 @@ class _MainPageState extends State<MainPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 171, 205, 229),
+                backgroundColor: const Color.fromARGB(255, 202, 212, 219),
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
               child: Text(
@@ -1736,7 +1888,7 @@ class _MainPageState extends State<MainPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 171, 205, 229),
+                backgroundColor: const Color.fromARGB(255, 202, 212, 219),
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
               child: Text(
@@ -1836,7 +1988,7 @@ class _MainPageState extends State<MainPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color.fromARGB(255, 171, 205, 229),
+                backgroundColor: const Color.fromARGB(255, 202, 212, 219),
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
               child: Text(
