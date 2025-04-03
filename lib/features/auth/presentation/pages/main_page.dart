@@ -1284,7 +1284,9 @@ class _MainPageState extends State<MainPage> {
               ),
             ],
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 8),
+          Divider(color: Colors.grey, thickness: 1),
+          SizedBox(height: 8),
           adminSubTab == "lights"
               ? _buildLightingControlPanel()
               : _buildEmergencySystem(),
@@ -1658,11 +1660,11 @@ class _MainPageState extends State<MainPage> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 171, 205, 229),
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
               child: Text(
-                'SOS 벨 Push',
-                style: TextStyle(fontSize: 16),
+                'SOS Bell Push',
+                style: TextStyle(fontSize: 12),
               ),
             ),
             ElevatedButton(
@@ -1735,11 +1737,111 @@ class _MainPageState extends State<MainPage> {
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color.fromARGB(255, 171, 205, 229),
-                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
               child: Text(
-                'SOS 벨 Pop',
-                style: TextStyle(fontSize: 16),
+                'SOS Bell Pop',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (appliedServerUrl.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('서버 URL을 입력해주세요')),
+                  );
+                  return;
+                }
+                final TextEditingController customIdController =
+                    TextEditingController();
+                final TextEditingController linkedCctvIdController =
+                    TextEditingController();
+
+                await showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('벨 - CCTV 연결'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: customIdController,
+                          decoration: InputDecoration(
+                            labelText: 'Custom ID',
+                            hintText: '0x4100000000000000',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        TextField(
+                          controller: linkedCctvIdController,
+                          decoration: InputDecoration(
+                            labelText: 'Linked CCTV ID',
+                            hintText: 'P1_B1_1_1',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('취소'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          if (customIdController.text.isEmpty ||
+                              linkedCctvIdController.text.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('모든 필드를 입력해주세요')),
+                            );
+                            return;
+                          }
+                          try {
+                            final response = await http.post(
+                              Uri.parse(
+                                  '$appliedServerUrl/api/dev/test/sos-bell/init'),
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization':
+                                    'c0f0de79-55f3-419b-88ea-6dde435acb35',
+                              },
+                              body: json.encode({
+                                "customID": customIdController.text,
+                                "linkedCctvID": linkedCctvIdController.text
+                              }),
+                            );
+                            if (response.statusCode == 200) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('벨 - CCTV 연결 성공')),
+                              );
+                              Navigator.pop(context);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        '벨 - CCTV 연결 실패 (Code: ${response.statusCode})')),
+                              );
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('오류 발생: $e')),
+                            );
+                          }
+                        },
+                        child: Text('연결'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 171, 205, 229),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              ),
+              child: Text(
+                'Bell-Cctv Connect',
+                style: TextStyle(fontSize: 12),
               ),
             ),
           ],
